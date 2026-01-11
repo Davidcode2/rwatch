@@ -1,0 +1,19 @@
+[package]
+name = "rwatch-agent"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+
+[dependencies]
+# Workspace dependencies
+tokio = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+anyhow = { workspace = true }
+
+# Agent-specific dependencies
+axum = "0.7"
+tower = "0.5"  # Useful for middleware in future iterations
+
+# Internal dependency - note the path-based reference
+rwatch-common = { path = "../common" }

@@ -1,92 +1,134 @@
 # Rwatch
 
-This project is my first project using rust.
-The goal is to learn the language and have some fun in the process.
+**Rwatch** is a lightweight, real-time monitoring tool built in Rust. 
 
-I'll rely heavily on AI for the first iteration.
+This project is designed as a deep-dive into the Rust ecosystem. The goal is to
+build a functional tool while exploring intermediate-to-advanced concepts like
+async networking, concurrency, workspace management, and terminal user
+interfaces.
 
-## Project goal
+## Project Architecture
 
-Rwatch is a lightweight, real-time monitoring tool built in Rust, consisting of:
+Rwatch consists of three main components organized in a Cargo Workspace:
 
-- **TUI (Terminal User Interface)**: A client application for visualizing metrics
-- **Agents**: One or more daemons collecting system metrics on Linux servers
+1.  **`agent`**: A background daemon that runs on Linux servers. It collects
+    system metrics and exposes them via a REST API.
+2.  **`tui`**: A Terminal User Interface client. It reads a config file,
+    connects to multiple agents, and visualizes the data.
+3.  **`common`**: A shared library crate containing data structures, protocol
+    definitions, and utility functions shared between the Agent and TUI to
+    ensure type safety (DRY).
 
 ### Key Features
 
-- **Real-time monitoring**: CPU, memory, and network metrics
-- **In-memory storage**: Fast access with automatic retention management
-- **HTTP-based communication**: Simple, firewall-friendly protocol
-- **Multiple agent support**: Monitor multiple servers from a single TUI
+* **Real-time monitoring**: CPU, Memory, and Network I/O.
+* **Agent-side History**: Agents maintain a rolling history of metrics in memory.
+* **Stateless Client**: The TUI can be restarted without losing historical data (as long as agents are running).
+* **HTTP Protocol**: Simple, firewall-friendly JSON communication.
 
-### Rust Learning Focus
+## Tech Stack & Learning Goals
 
-This project explores:
+This project explores the following Rust concepts and libraries:
 
-- Workspace-based monorepo structure
-- Async/await with Tokio for network I/O
-- Type-safe data serialization with Serde
-- Error handling with Result types
-- Shared libraries between binaries
-- TUI development with Ratatui
+| Concept | Library / Tool | Purpose |
+| --- | --- |  --- |
+| **Workspace** | Cargo | Managing a monorepo with shared dependencies. |
+| **Async Runtime** | `tokio` | Handling non-blocking I/O and task scheduling. |
+| **Web Server** | `axum` | Serving metrics from the Agent. |
+| **HTTP Client** | `reqwest` | Fetching metrics in the TUI. |
+| **Serialization** | `serde` | JSON parsing/generating. |
+| **System Stats** | `sysinfo` | Cross-platform system metric collection. |
+| **TUI** | `ratatui` | Rendering the interface. |
+| **Shared State** | `Arc<RwLock<T>>` | Managing safe access to data across threads. |
 
-## Implementation details
 
-### tui
+## Implementation Details
 
-The tui reads a configuration file in yaml format specifying the connection details for the agents.
+### 1. The Agent (`rwatch-agent`)
 
-### agent
+The agent has two primary asynchronous responsibilities running concurrently:
 
-The agent will collect metrics at configurable intervals. The snapshots will be
-stored by the agent in memory until a configurable memory threshold is reached.
-After the threshold is reached, the oldest snapshot will be deleted.
+1. **Collector Task**: Wakes up at a configurable interval (e.g., 1s), uses
+   `sysinfo` to snapshot system metrics, and pushes them into storage.
+2. **Server Task**: An `axum` web server listening for HTTP requests to serve
+   data to the TUI.
 
-Metrics are stored as strongly-typed Rust structs and serialized to JSON:
+**Storage Strategy (Ring Buffer):**
+
+Instead of infinite growth or complex memory thresholds, the agent uses a
+**Fixed-Capacity Ring Buffer** (e.g., `VecDeque` with a limit).
+
+* *Logic:* "Keep the last 600 seconds of data."
+* *Benefit:* Deterministic memory usage and O(1) operations.
+
+### 2. The TUI (`rwatch-tui`)
+
+The TUI is an async application that:
+
+1. Reads a `config.yaml` to find Agent IPs.
+2. Polls agents via HTTP.
+3. Renders the UI using `ratatui`.
+
+### 3. Communication & Data (`rwatch-common`)
+
+Communication happens via HTTP. Data is serialized to JSON.
+
+**Metric Structure:** 
+
+Metrics are defined as an internally tagged enum to
+handle different data types cleanly.
 
 ```json
+// Example Metric Snapshot
 {
   "kind": "memory",
-  "timestamp": "2026-01-10T21:23:00Z",
+  "timestamp": 1704921780,
   "used": 4000,
   "total": 16000,
   "unit": "MiB"
 }
+
 ```
 
-**Rust Best Practices:**
-- Use `serde` for JSON serialization/deserialization
-- Define metrics as enums with associated data (sum types)
-- Use `chrono` or `time` crate for timestamps (ISO 8601 format)
-- Store numeric values as proper types (u64, f64), not strings
+## Repository Structure
 
-### communication
-
-communication between tui and agent happens via http.
-
-### Repository Setup
-
-Cargo workspace structure:
-```
+```text
 rwatch/
 ├── Cargo.toml          # Workspace root
-├── agent/              # Agent binary crate
-├── tui/                # TUI binary crate
-└── common/             # Shared library crate (data types, protocols)
+├── common/             # Shared library (Structs, Enums, Error types)
+│   ├── src/lib.rs
+│   └── Cargo.toml
+├── agent/              # The daemon
+│   ├── src/
+│   │   ├── main.rs     # Entry point & Runtime setup
+│   │   ├── state.rs    # Shared State (Arc<RwLock>) & RingBuffer logic
+│   │   ├── collector.rs# Sysinfo gathering logic
+│   │   └── server.rs   # Axum handlers
+│   └── Cargo.toml
+└── tui/                # The client
+    ├── src/
+    │   ├── main.rs
+    │   ├── app.rs      # TUI State
+    │   └── ui.rs       # Ratatui widgets
+    └── Cargo.toml
+
 ```
 
-**Benefits:**
-- Shared types between agent and TUI (DRY principle)
-- Single `target/` directory for build artifacts
-- Easy to test integration between components
-- Version dependencies centrally
+---
 
-# First iteration
+## Iteration 1: The "Hello World" of Monitoring
 
-- clean project setup according to rust best practices
-- tui capable of querying /health endpoint of agents 
-- basic tui showing
-    - available agents
-- agent with 
-    - http GET endpoint for /health
-    - /health endpoint providing health response in json format.
+The goal of the first iteration is to establish the workspace, networking, and
+basic types without getting bogged down in complex UI logic.
+
+**Definition of Done:**
+
+1. **Workspace Created**: Project compiles with `agent`, `tui`, and `common`.
+2. **Common Library**: `HealthResponse` struct is defined in `common` and used by both binaries.
+3. **Agent**:
+    * Runs an HTTP server on a configurable port.
+    * Exposes `GET /health` returning JSON: `{"status": "up", "uptime": 123, "version": "0.1.0"}`.
+4. **TUI**:
+    * Reads a list of agents from config.
+    * Queries the `/health` endpoint of an agent.
+    * Displays the result in a basic list (can be simple stdout or a very basic Ratatui list).

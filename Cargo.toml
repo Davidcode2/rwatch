@@ -1,6 +1,21 @@
-[package]
-name = "rwatch"
+[workspace]
+resolver = "2"
+members = [
+    "agent",
+    "tui",
+    "common",
+]
+
+# Workspace-level dependencies for version consistency
+# This is a best practice for managing dependencies across multiple crates
+[workspace.dependencies]
+tokio = { version = "1.41", features = ["full"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+anyhow = "1.0"
+
+# Common version for the workspace members to reference
+[workspace.package]
 version = "0.1.0"
 edition = "2024"
-
-[dependencies]
+authors = ["Jakob Lingel"]
