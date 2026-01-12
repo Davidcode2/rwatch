@@ -4,7 +4,7 @@
 //! This iteration implements a simple stdout-based display.
 
 use anyhow::{Context, Result};
-use rwatch_common::HealthResponse;
+use rwatch_common::health::HealthResponse;
 
 #[tokio::main]
 async fn main() -> Result<()> {
