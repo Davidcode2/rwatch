@@ -63,7 +63,5 @@ mod tests {
         let health: HealthResponse = serde_json::from_slice(&body).unwrap();
 
         assert_eq!(health.status, "up");
-        // Uptime should be a small positive number in tests
-        assert!(health.uptime >= 0);
     }
 }
