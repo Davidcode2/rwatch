@@ -1,4 +1,4 @@
-use rwatch_common::{health::HealthResponse, memory::Memory};
+use rwatch_common::{health::HealthResponse, memory::Memory, memory_display::as_gb};
 
 /// Displays health information to stdout
 ///
@@ -19,8 +19,8 @@ pub fn display_memory(memory: &Memory) {
     println!("╔════════════════════════════════════════╗");
     println!("║           Memory Status                ║");
     println!("╠════════════════════════════════════════╣");
-    println!("║ Total:      {:<27}║", memory.total);
-    println!("║ Available:  {:<27}║", memory.available);
+    println!("║ Total:      {:<27}║", as_gb(memory.total));
+    println!("║ Available:  {:<27}║", as_gb(memory.available));
     println!("╚════════════════════════════════════════╝");
 }
 
@@ -39,4 +39,16 @@ mod tests {
     // **Note**: Testing `query_agent_health` would require mocking
     // For now, we skip it, but in production you'd use a trait-based
     // HTTP client or a mocking library like `mockito`
+    //
+    #[test]
+    fn format_memory_to_gb() {
+        let memory = Memory { 
+            total: 56_000_000,
+            available: 40_000_000,
+            free: 53_000_000,
+            used: 12_000_000,
+        };
+        let formatted = memory.as_gb();
+        assert_eq!(formatted.total, 56)
+    }
 }
