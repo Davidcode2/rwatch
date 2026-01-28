@@ -36,7 +36,6 @@ async fn run() -> Result<()> {
         .await
         .context(format!("Failed to query agent at {}", agent_url))?;
 
-    // Display the result
     display_health(agent_url, &health);
     display_memory(&memory);
 

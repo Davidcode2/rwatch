@@ -25,7 +25,6 @@ impl Memory {
 
     pub fn memory() -> Memory {
         let memory = Self::get_memory();
-        println!("Memory: {:#?}", memory);
         memory
     }
 
