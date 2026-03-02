@@ -8,11 +8,13 @@ COPY Cargo.toml Cargo.lock ./
 COPY common/Cargo.toml common/
 COPY client/Cargo.toml client/
 COPY agent/Cargo.toml agent/
+COPY tui/Cargo.toml tui/
 
 # Copy source code
 COPY common/src common/src/
 COPY client/src client/src/
 COPY agent/src agent/src/
+COPY tui/src tui/src/
 
 # Build the agent in release mode
 RUN cargo build --release -p rwatch-agent
