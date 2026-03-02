@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: rwatch-tui-config
+  namespace: rwatch
+data:
+  config.yaml: |
+    agents:
+      # Agents will be discovered via DNS or service discovery
+      # Format: http://<pod-ip>:3000 or use headless service DNS
+      discovery_method: "kubernetes"
+      namespace: "rwatch"
+      service_name: "rwatch-agent"
+      port: 3000
+    refresh_interval: 5
