@@ -6,10 +6,12 @@ WORKDIR /app
 # Copy workspace files
 COPY Cargo.toml Cargo.lock ./
 COPY common/Cargo.toml common/
+COPY client/Cargo.toml client/
 COPY agent/Cargo.toml agent/
 
 # Copy source code
 COPY common/src common/src/
+COPY client/src client/src/
 COPY agent/src agent/src/
 
 # Build the agent in release mode
