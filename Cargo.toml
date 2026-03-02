@@ -4,6 +4,7 @@ members = [
     "agent",
     "tui",
     "common",
+    "client",
 ]
 
 # Workspace-level dependencies for version consistency
