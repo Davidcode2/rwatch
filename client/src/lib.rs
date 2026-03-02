@@ -10,6 +10,7 @@ pub mod discovery;
 use anyhow::{Context, Result};
 use rwatch_common::health::HealthResponse;
 use rwatch_common::memory::Memory;
+use serde::de::DeserializeOwned;
 use std::time::Duration;
 
 /// Client for interacting with rwatch agents
@@ -21,95 +22,99 @@ pub struct Client {
 
 impl Default for Client {
     fn default() -> Self {
-        Self::new()
+        // For Default trait, we use a reasonable fallback
+        // In production, use Client::new() which returns Result
+        Self {
+            http_client: reqwest::Client::builder()
+                .timeout(Duration::from_secs(5))
+                .build()
+                .expect("Failed to create HTTP client"),
+            timeout: Duration::from_secs(5),
+        }
     }
 }
 
 impl Client {
     /// Create a new client with default settings
-    pub fn new() -> Self {
+    pub fn new() -> Result<Self> {
         let http_client = reqwest::Client::builder()
             .timeout(Duration::from_secs(5))
             .build()
-            .expect("Failed to create HTTP client");
+            .context("Failed to create HTTP client")?;
 
-        Self {
+        Ok(Self {
             http_client,
             timeout: Duration::from_secs(5),
-        }
+        })
     }
 
     /// Create a new client with custom timeout
-    pub fn with_timeout(timeout: Duration) -> Self {
+    pub fn with_timeout(timeout: Duration) -> Result<Self> {
         let http_client = reqwest::Client::builder()
             .timeout(timeout)
             .build()
-            .expect("Failed to create HTTP client");
+            .context("Failed to create HTTP client")?;
 
-        Self {
+        Ok(Self {
             http_client,
             timeout,
+        })
+    }
+
+    /// Generic method to query any endpoint
+    async fn query_endpoint<T: DeserializeOwned>(
+        &self,
+        agent_url: &str,
+        endpoint: &str,
+    ) -> Result<T> {
+        let url = format!("{}/{}", agent_url, endpoint);
+
+        let response = self
+            .http_client
+            .get(&url)
+            .send()
+            .await
+            .with_context(|| format!("Failed to connect to agent at {}", agent_url))?;
+
+        if !response.status().is_success() {
+            anyhow::bail!(
+                "Agent at {} returned error status: {} for endpoint {}",
+                agent_url,
+                response.status(),
+                endpoint
+            );
         }
+
+        let data = response
+            .json::<T>()
+            .await
+            .with_context(|| {
+                format!(
+                    "Failed to parse {} response from {}",
+                    endpoint, agent_url
+                )
+            })?;
+
+        Ok(data)
     }
 
     /// Query the health endpoint of an agent
     pub async fn query_health(&self, agent_url: &str) -> Result<HealthResponse> {
-        let url = format!("{}/health", agent_url);
-        
-        let response = self
-            .http_client
-            .get(&url)
-            .send()
-            .await
-            .with_context(|| format!("Failed to connect to agent at {}", agent_url))?;
-
-        if !response.status().is_success() {
-            anyhow::bail!(
-                "Agent at {} returned error status: {}",
-                agent_url,
-                response.status()
-            );
-        }
-
-        let health = response
-            .json::<HealthResponse>()
-            .await
-            .with_context(|| format!("Failed to parse health response from {}", agent_url))?;
-
-        Ok(health)
+        self.query_endpoint(agent_url, "health").await
     }
 
     /// Query the memory endpoint of an agent
     pub async fn query_memory(&self, agent_url: &str) -> Result<Memory> {
-        let url = format!("{}/memory", agent_url);
-        
-        let response = self
-            .http_client
-            .get(&url)
-            .send()
-            .await
-            .with_context(|| format!("Failed to connect to agent at {}", agent_url))?;
-
-        if !response.status().is_success() {
-            anyhow::bail!(
-                "Agent at {} returned error status: {}",
-                agent_url,
-                response.status()
-            );
-        }
-
-        let memory = response
-            .json::<Memory>()
-            .await
-            .with_context(|| format!("Failed to parse memory response from {}", agent_url))?;
-
-        Ok(memory)
+        self.query_endpoint(agent_url, "memory").await
     }
 
-    /// Query both health and memory from an agent
+    /// Query both health and memory from an agent concurrently
     pub async fn query_agent(&self, agent_url: &str) -> Result<AgentData> {
-        let health = self.query_health(agent_url).await?;
-        let memory = self.query_memory(agent_url).await?;
+        // Query both endpoints concurrently for better performance
+        let (health, memory) = tokio::try_join!(
+            self.query_health(agent_url),
+            self.query_memory(agent_url)
+        )?;
 
         Ok(AgentData {
             url: agent_url.to_string(),

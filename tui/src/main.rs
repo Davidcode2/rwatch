@@ -21,7 +21,7 @@ async fn run() -> Result<()> {
     println!("🔍 Rwatch TUI - Monitoring Cluster\n");
 
     // Create the client for querying agents
-    let client = Client::new();
+    let client = Client::new().context("Failed to create HTTP client")?;
 
     // Discover agents from configuration
     // For now, use static discovery with multiple agent URLs
@@ -73,8 +73,8 @@ async fn get_discovery() -> Result<Discovery> {
     // For now, try environment variables first
     let env_discovery = rwatch_client::discovery::EnvDiscovery::default_prefix();
     
-    // If env vars are set, use them
-    if let Ok(agent_list) = env_discovery.discover().await {
+    // If env vars are set, use them (sync operation)
+    if let Ok(agent_list) = env_discovery.discover() {
         if !agent_list.is_empty() {
             return Ok(Discovery::from(env_discovery));
         }
@@ -97,7 +97,7 @@ mod tests {
     #[tokio::test]
     async fn test_client_creation() {
         // Test that we can create a client
-        let _client = Client::new();
-        // If we get here without panicking, the client was created successfully
+        let result = Client::new();
+        assert!(result.is_ok(), "Failed to create HTTP client: {:?}", result.err());
     }
 }

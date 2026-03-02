@@ -22,8 +22,8 @@ impl StaticDiscovery {
         }
     }
 
-    /// Discover available agents
-    pub async fn discover(&self) -> Result<AgentList> {
+    /// Discover available agents (synchronous - no async I/O)
+    pub fn discover(&self) -> Result<AgentList> {
         let agents = self
             .urls
             .iter()
@@ -57,7 +57,7 @@ impl KubernetesDiscovery {
         format!("{}.{}", self.service_name, self.namespace)
     }
 
-    /// Discover available agents
+    /// Discover available agents (async for future K8s API integration)
     pub async fn discover(&self) -> Result<AgentList> {
         // In a real implementation, this would query the Kubernetes API
         // For now, we return an empty list with a note about implementation
@@ -88,8 +88,8 @@ impl EnvDiscovery {
         Self::new("RWATCH_AGENT")
     }
 
-    /// Discover available agents
-    pub async fn discover(&self) -> Result<AgentList> {
+    /// Discover available agents (synchronous - reads env vars)
+    pub fn discover(&self) -> Result<AgentList> {
         use std::env;
 
         let mut agents = Vec::new();
@@ -137,9 +137,9 @@ impl Discovery {
     /// Discover available agents
     pub async fn discover(&self) -> Result<AgentList> {
         match self {
-            Discovery::Static(d) => d.discover().await,
+            Discovery::Static(d) => Ok(d.discover()?),
             Discovery::Kubernetes(d) => d.discover().await,
-            Discovery::Env(d) => d.discover().await,
+            Discovery::Env(d) => Ok(d.discover()?),
         }
     }
 }
@@ -166,14 +166,14 @@ impl From<EnvDiscovery> for Discovery {
 mod tests {
     use super::*;
 
-    #[tokio::test]
-    async fn test_static_discovery() {
+    #[test]
+    fn test_static_discovery() {
         let discovery = StaticDiscovery::from_urls(&[
             "http://agent1:3000",
             "http://agent2:3000",
         ]);
 
-        let agents = discovery.discover().await.unwrap();
+        let agents = discovery.discover().unwrap();
         assert_eq!(agents.len(), 2);
     }
 
