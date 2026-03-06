@@ -27,3 +27,9 @@ thiserror = "1.0"
 
 # For timestamps
 chrono = "0.4"
+
+# For CLI argument parsing
+clap = { version = "4.5", features = ["derive", "env"] }
+
+# For generating random dummy data
+rand = "0.8"

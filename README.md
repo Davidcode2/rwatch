@@ -35,6 +35,25 @@ cargo run -p rwatch-agent
 cargo run -p rwatch-tui
 ```
 
+### Frontend Development (Dummy Mode)
+
+For developing the web frontend without a Kubernetes cluster, use dummy mode:
+
+```bash
+# Terminal 1: Start agent in dummy mode
+cargo run -p rwatch-agent -- --dummy
+
+# Terminal 2: Start the web frontend (from rwatch-web directory)
+cd ../rwatch-web
+npm run server  # or: npm run dev
+```
+
+**Dummy mode provides:**
+- 3 simulated nodes with realistic CPU/memory metrics
+- 40-50 pods across multiple namespaces
+- Smooth metric variations to simulate real cluster behavior
+- All API endpoints work identically to production mode
+
 ### Kubernetes Deployment
 
 Deployed via GitHub Actions → ArgoCD:
@@ -90,16 +109,18 @@ rwatch-agent.rwatch.svc.cluster.local:3000
 
 ### Known Limitations
 - **Platform**: Linux only (requires `/proc/meminfo`)
-- **Port**: Agent binds to hardcoded port 3000
 - **Metrics**: Only memory (total/available), no CPU/network yet
 - **History**: No persistence, agents return current snapshot only
 - **Security**: No authentication on HTTP endpoints
+
+### Completed Features
+- ✅ **Port**: Configurable via `--port` flag or `PORT` env variable
+- ✅ **Dummy Mode**: Test data generation for frontend development
 
 ### Future Work
 - **Configuration**: Config file support instead of env vars
 - **Metrics**: Add CPU and network I/O monitoring
 - **History**: Implement ring buffer for metric history
-- **Port**: Make agent port configurable
 - **Discovery**: Complete Kubernetes API-based discovery
 - **UI**: Interactive TUI with real-time updates (ratatui)
 - **Web**: Web interface alternative to TUI

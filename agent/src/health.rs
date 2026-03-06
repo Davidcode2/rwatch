@@ -27,7 +27,7 @@ impl HealthHandler {
 #[cfg(test)]
 mod tests {
     use crate::Instant;
-    use crate::create_router;
+    use crate::create_real_router;
     use crate::metrics::K8sState;
     use rwatch_common::health::HealthResponse;
     use super::*;
@@ -51,7 +51,7 @@ mod tests {
             }
         };
 
-        let app = create_router(k8s_state);
+        let app = create_real_router(k8s_state);
 
         // Create a test request
         let response = app

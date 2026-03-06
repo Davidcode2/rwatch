@@ -62,6 +62,84 @@ cargo test -p rwatch-common
 cargo test -- --nocapture
 ```
 
+### Dummy/Test Mode (Frontend Development)
+
+The agent supports a dummy mode that generates realistic simulated data without requiring a Kubernetes cluster. This is ideal for frontend development and testing.
+
+**Usage:**
+
+```bash
+# Run agent in dummy mode
+ cargo run -p rwatch-agent -- --dummy
+
+# Or with short flag
+cargo run -p rwatch-agent -- -d
+
+# Using environment variable
+DUMMY_MODE=true cargo run -p rwatch-agent
+
+# With custom port
+PORT=8080 cargo run -p rwatch-agent -- --dummy
+```
+
+**What dummy mode provides:**
+
+- **3 nodes** with varying CPU (2-4 cores) and memory (8-16 GB) capacities
+- **40-50 pods** distributed across namespaces: `default`, `kube-system`, `app-namespace`, `monitoring`
+- **Smooth variations** in metrics to simulate real cluster behavior (±2% variation per request)
+- All endpoints return data in the same format as production mode:
+  - `GET /health` - Server status with uptime
+  - `GET /memory` - Simulated system memory metrics
+  - `GET /api/metrics/nodes` - Node CPU/memory usage with percentages
+  - `GET /api/metrics/pods` - Pod resource usage across namespaces
+  - `GET /api/metrics/summary` - Aggregated cluster statistics
+
+**Frontend Integration:**
+
+The rwatch-web frontend can connect to the dummy agent without any code changes:
+
+```bash
+# Terminal 1: Start dummy agent
+cargo run -p rwatch-agent -- --dummy
+
+# Terminal 2: Start frontend (in ../rwatch-web)
+cd ../rwatch-web
+npm run server  # or: npm run dev
+```
+
+The frontend's Vite proxy configuration already points to `localhost:3000`, so it will automatically receive the dummy data.
+
+**Debugging Frontend with Dummy Mode:**
+
+When developing the frontend, you can debug against the dummy server:
+
+1. **Start the dummy agent** (provides consistent test data):
+   ```bash
+   cargo run -p rwatch-agent -- --dummy
+   ```
+
+2. **Start the frontend dev server**:
+   ```bash
+   cd ../rwatch-web
+   npm run dev
+   ```
+
+3. **Open browser** to `http://localhost:5173` (or the port Vite shows)
+
+4. **Use browser DevTools** (F12):
+   - Network tab: See API requests to `/api/*`
+   - Console: View any frontend errors
+   - React/Vue DevTools: Inspect component state
+
+5. **The proxy configuration** in `rwatch-web/vite.config.ts` forwards all `/api/*` requests to `localhost:3000` where the dummy agent is running.
+
+**Benefits of dummy mode for frontend debugging:**
+- No Kubernetes cluster required
+- Consistent, repeatable data (restarts with same node/pod setup)
+- Fast iteration (no cluster latency)
+- Can test error handling by stopping/starting the agent
+- No risk of affecting production data
+
 ## Key Components
 
 ### Agent (`agent/`)
@@ -187,20 +265,22 @@ See `DEPLOYMENT.md` for detailed setup instructions.
 
 ### Current Limitations
 1. **Platform**: Linux only (requires `/proc/meminfo`)
-2. **Port**: Hardcoded to 3000, not configurable
-3. **Metrics**: Only memory (total/available), no CPU/network yet
-4. **History**: No persistence, agents return current snapshot only
-5. **Security**: No authentication on HTTP endpoints (internal cluster only)
-6. **TUI**: Currently text-based, not using ratatui yet
+2. **Metrics**: Only memory (total/available), no CPU/network yet
+3. **History**: No persistence, agents return current snapshot only
+4. **Security**: No authentication on HTTP endpoints (internal cluster only)
+5. **TUI**: Currently text-based, not using ratatui yet
 
 ### Planned Improvements
 - **Configuration**: Config file support instead of env vars
 - **Metrics**: Add CPU and network I/O monitoring
 - **History**: Implement ring buffer for metric history
-- **Port**: Make agent port configurable
 - **Discovery**: Complete Kubernetes API-based discovery
 - **UI**: Full ratatui implementation with real-time updates
 - **Web**: Web interface alternative to TUI
+
+### Completed Improvements
+- **Port**: Agent port is now configurable via `--port` or `PORT` environment variable
+- **Dummy Mode**: Added `--dummy` flag for frontend development without K8s cluster
 
 ### Technical Debt
 - Agent error handling could be more robust
@@ -227,6 +307,7 @@ See `DEPLOYMENT.md` for detailed setup instructions.
 | Task | Command |
 |------|---------|
 | Run agent | `cargo run -p rwatch-agent` |
+| Run agent (dummy mode) | `cargo run -p rwatch-agent -- --dummy` |
 | Run TUI | `cargo run -p rwatch-tui` |
 | Test all | `cargo test` |
 | Build release | `cargo build --release` |
@@ -244,5 +325,5 @@ See `DEPLOYMENT.md` for detailed setup instructions.
 
 ---
 
-*Last updated: 2025-03-06*
-*Version: 0.1.3*
+*Last updated: 2026-03-06*
+*Version: 0.1.6*
