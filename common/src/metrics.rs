@@ -55,13 +55,17 @@ pub struct SummaryResponse {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NodeSummary {
     pub count: usize,
+    #[serde(rename = "cpuUsage")]
     pub cpu_usage: f64,      // Average percentage
+    #[serde(rename = "memoryUsage")]
     pub memory_usage: f64,   // Average percentage
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PodSummary {
     pub count: usize,
+    #[serde(rename = "cpuUsage")]
     pub cpu_usage: String,   // Total CPU in K8s format
+    #[serde(rename = "memoryUsage")]
     pub memory_usage: String, // Total memory in K8s format
 }
