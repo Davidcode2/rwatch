@@ -1,132 +1,111 @@
-# Rwatch Agent Documentation
+# Rwatch - Agent Documentation
 
-This document describes the current implementation state of the rwatch monitoring tool for AI agents and developers.
+> **For AI Agents:** This document provides essential context for working with the rwatch project.
 
-## Current Implementation Status
+## Project Overview
 
-**Version**: 0.1.0  
-**Last Updated**: 2026-03-02
+Rwatch is a lightweight, real-time monitoring tool for Linux systems built in Rust. It consists of:
+- **Agent**: Daemon that runs on each node collecting system metrics
+- **Client Library**: For querying agents and aggregating cluster-wide data
+- **Common Types**: Shared data structures between agent and client
+- **TUI**: Terminal user interface for visualizing cluster metrics
 
-## Architecture Overview
-
-The project now consists of **four crates** in a Cargo workspace:
+### Architecture
 
 ```
 rwatch/
-├── Cargo.toml              # Workspace root
-├── agent/                  # The monitoring daemon (rwatch-agent)
-├── client/                 # NEW: Business logic for querying agents (rwatch-client)
-├── common/                 # Shared types and utilities (rwatch-common)
-└── tui/                    # Terminal UI (rwatch-tui)
+├── agent/      # Daemon that collects system metrics from /proc/meminfo
+├── client/     # Library for querying agents (handles HTTP + discovery)
+├── common/     # Shared types: HealthResponse, Memory, memory_display
+└── tui/        # Terminal UI using ratatui (future) + client library
 ```
 
-## What Currently Works
+## Building and Running Locally
 
-### ✅ Agent (`rwatch-agent`)
+### Prerequisites
+- Rust toolchain (edition 2024)
+- Linux system (requires `/proc/meminfo`)
+- Optional: Kubernetes cluster for deployment testing
 
-The agent is a lightweight HTTP server that exposes two endpoints:
+### Build Commands
 
-**Endpoints:**
-- `GET /health` - Returns agent status, uptime, and version
-- `GET /memory` - Returns memory metrics from `/proc/meminfo`
+```bash
+# Build the entire workspace
+cargo build --release
 
-**Implementation Details:**
-- Built with `axum` web framework
-- Binds to `0.0.0.0:3000` (hardcoded)
-- Reads memory from Linux `/proc/meminfo` (Linux only)
-- Returns JSON responses
-- Single-threaded async with tokio
+# Run the agent locally
+cargo run -p rwatch-agent
+# Agent starts on http://0.0.0.0:3000
 
-**Memory Reading:**
-- Only reads `MemTotal` and `MemAvailable` from `/proc/meminfo`
-- Values are in KB
-- Other fields (used, free) are hardcoded to 0
+# Run the TUI (in another terminal)
+cargo run -p rwatch-tui
+# Connects to agents at http://localhost:3000 by default
 
-### ✅ Client Library (`rwatch-client`) - NEW
+# Build specific crate
+cargo build -p rwatch-agent
+cargo build -p rwatch-client
+cargo build -p rwatch-common
+cargo build -p rwatch-tui
+```
 
-A new crate that centralizes all agent communication logic:
+### Running Tests
 
-**Features:**
+```bash
+# Run all tests
+cargo test
+
+# Run tests for specific crate
+cargo test -p rwatch-client
+cargo test -p rwatch-common
+
+# Run with output visible
+cargo test -- --nocapture
+```
+
+## Key Components
+
+### Agent (`agent/`)
+- **Entry**: `src/main.rs`
+- **Handlers**: `src/health.rs`, `src/memory.rs`
+- HTTP server using Axum framework
+- Binds to port 3000 (hardcoded - known limitation)
+- Reads from `/proc/meminfo` (Linux only)
+
+### Client Library (`client/`)
+- **Entry**: `src/lib.rs`
+- **Discovery**: `src/discovery.rs`, `src/agent.rs`
 - `Client` struct for querying agents
-- Concurrent querying of multiple agents via `query_agents()`
-- Agent discovery mechanisms (static, environment-based, Kubernetes placeholder)
-- Data aggregation across multiple agents
-- Structured response types (`AgentResult`, `AgentData`)
+- Supports concurrent queries with `tokio::try_join!`
+- Discovery via environment variables (`RWATCH_AGENT_*`) or static config
 
-**Discovery Methods:**
-1. `StaticDiscovery` - Predefined list of URLs
-2. `EnvDiscovery` - Environment variables (`RWATCH_AGENT_*`)
-3. `KubernetesDiscovery` - Placeholder for K8s API integration
+### Common Types (`common/`)
+- **HealthResponse**: `{ status, uptime, version }`
+- **Memory**: `{ total, used, free, available }` (values in KB from /proc/meminfo)
+- **memory_display**: Formatting utilities for TUI
 
-**Key Types:**
-```rust
-pub struct Client { ... }
-pub struct AgentData { url, health, memory }
-pub enum AgentResult { Success(AgentData), Failure { url, error } }
-pub struct AggregatedMetrics { ... }
-```
-
-### ✅ Common Library (`rwatch-common`)
-
-Shared types between all components:
-
-**Types:**
-- `HealthResponse` - Status, uptime, version
-- `Memory` - total, used, free, available (in KB)
-- `MemoryWithUnit` - Display formatting utilities
-
-### ✅ TUI (`rwatch-tui`)
-
-The terminal interface now uses the client library:
-
-**Features:**
-- Discovers agents via multiple methods
-- Queries all agents concurrently
-- Displays aggregated cluster metrics
-- Shows per-agent status (success/failure)
-- Pretty-printed output to stdout
-
-**Display Output:**
-- Cluster summary (total/healthy/failed nodes)
-- Total cluster memory usage
-- Per-agent health and memory details
-
-## What Does NOT Work (Future Plans)
-
-### ❌ Ring Buffer / History
-Agents do not maintain historical data. Currently only return current snapshot.
-
-### ❌ CPU Metrics
-CPU monitoring is planned but not implemented.
-
-### ❌ Network I/O Metrics
-Network monitoring is planned but not implemented.
-
-### ❌ Configuration Files
-No config file support yet. URLs are hardcoded or from env vars.
-
-### ❌ Interactive TUI
-Current TUI is batch mode only (queries once and exits). No ratatui implementation yet.
-
-### ❌ Kubernetes Discovery (Full)
-KubernetesDiscovery is a placeholder. It needs actual K8s API integration.
-
-### ❌ Web Interface
-No web UI exists yet.
+### TUI (`tui/`)
+- **Entry**: `src/main.rs`
+- **UI**: `src/ui.rs`
+- Currently text-based output (ratatui migration planned)
+- Discovers agents, queries concurrently, displays aggregated metrics
 
 ## API Endpoints
 
+The agent exposes the following HTTP endpoints:
+
 ### GET /health
+Returns agent health status.
 
 ```json
 {
   "status": "up",
   "uptime": 123,
-  "version": "0.1.0"
+  "version": "0.1.3"
 }
 ```
 
 ### GET /memory
+Returns memory metrics from `/proc/meminfo`.
 
 ```json
 {
@@ -137,142 +116,133 @@ No web UI exists yet.
 }
 ```
 
-*Note: Values are in KB from /proc/meminfo*
+**Note**: Values are in kilobytes (KB) as read from `/proc/meminfo`.
 
-## Running the Project
+## Deployment Process
 
-### Local Development
+### Workflow for Agents
+**IMPORTANT**: When making changes to this repository:
+1. Verify changes work correctly locally (run `cargo test` and `cargo build --release`)
+2. Commit changes with clear messages
+3. **Push directly to origin/main** - This triggers the CI/CD pipeline
+4. Do not create PRs for routine changes unless requested
 
-```bash
-# Start the agent
-cargo run -p rwatch-agent
+The GitHub Actions workflow will automatically:
+- Bump the version in all Cargo.toml files
+- Build and push the Docker image
+- Update the app-of-apps deployment repo
 
-# In another terminal, run the TUI
-cargo run -p rwatch-tui
-```
+### GitHub Actions Workflow
 
-### With Multiple Agents
+**Trigger**: Push to `main` branch with changes to:
+- `agent/`, `client/`, `common/`, `tui/`
+- `Cargo.toml`, `Cargo.lock`
+- `Dockerfile.agent`
 
-```bash
-# Terminal 1 - Agent 1
-PORT=3000 cargo run -p rwatch-agent
+**Workflow** (`.github/workflows/main.yml`):
+1. **Check for changes** - Skip build if only non-source files changed
+2. **Bump version** - Auto-increments patch version in all Cargo.toml files
+3. **Build and push** - Builds Docker image via reusable workflow
+4. **Deploy** - Updates app-of-apps repo with new image tag
 
-# Terminal 2 - Agent 2  
-# (modify agent to accept port arg - currently hardcoded)
+**Authentication**: Uses GitHub App token (not PAT)
+- Requires `APP_ID` and `APP_PRIVATE_KEY` secrets
+- App needs access to both `rwatch` and `app-of-apps` repos
 
-# Terminal 3 - TUI with env vars
-RWATCH_AGENT_0=http://localhost:3000 \
-RWATCH_AGENT_1=http://localhost:3001 \
-cargo run -p rwatch-tui
-```
+### Docker Image
 
-## Code Organization
+- **Name**: `ghcr.io/davidcode2/rwatch-agent`
+- **Tags**: `latest`, `sha-<commit>`, `<version>` (e.g., `0.1.3`)
+- **File**: `Dockerfile.agent`
 
-### Agent (`agent/src/`)
-- `main.rs` - HTTP server setup, axum router
-- `health.rs` - Health endpoint handler
-- `memory.rs` - Memory endpoint handler
+### Kubernetes Deployment
 
-### Client (`client/src/`)
-- `lib.rs` - Main Client API, AgentData, AgentResult, AggregatedMetrics
-- `agent.rs` - AgentConfig, AgentList
-- `discovery.rs` - Discovery implementations
+Deployed via ArgoCD from `app-of-apps` repository:
+- **Namespace**: `rwatch`
+- **DaemonSet**: Runs one agent pod per node
+- **Service**: Headless service for agent discovery (`rwatch-agent.rwatch.svc.cluster.local:3000`)
+- **Security**: `hostPID: true`, `hostNetwork: true` (required for /proc/meminfo access)
 
-### Common (`common/src/`)
-- `lib.rs` - Module exports
-- `health.rs` - HealthResponse struct
-- `memory.rs` - Memory struct, /proc/meminfo parsing
-- `memory_display.rs` - Display formatting
+See `DEPLOYMENT.md` for detailed setup instructions.
 
-### TUI (`tui/src/`)
-- `main.rs` - Application logic, agent discovery
-- `ui.rs` - Display functions
+## Testing Approach
 
-## Testing
+### Unit Tests
+- Each crate has inline tests in `#[cfg(test)]` modules
+- Key areas:
+  - Serialization/deserialization of common types
+  - Client query logic and result aggregation
+  - Memory parsing from /proc/meminfo
 
-All crates have unit tests:
+### Integration Testing
+- Run agent locally: `cargo run -p rwatch-agent`
+- Query manually: `curl http://localhost:3000/health`
+- Run TUI to verify end-to-end flow
 
-```bash
-cargo test
-```
+### Kubernetes Testing
+- Port-forward to cluster: `kubectl port-forward -n rwatch service/rwatch-agent 3000:3000`
+- Run TUI locally against forwarded port
 
-Current test coverage:
-- Health response serialization/deserialization
-- Memory struct creation
-- Agent discovery mechanisms
-- Client result handling
-- Aggregation logic
-- UI display functions
+## Known Issues and TODOs
 
-## Kubernetes Deployment
+### Current Limitations
+1. **Platform**: Linux only (requires `/proc/meminfo`)
+2. **Port**: Hardcoded to 3000, not configurable
+3. **Metrics**: Only memory (total/available), no CPU/network yet
+4. **History**: No persistence, agents return current snapshot only
+5. **Security**: No authentication on HTTP endpoints (internal cluster only)
+6. **TUI**: Currently text-based, not using ratatui yet
 
-Kubernetes manifests exist in `deploy/k8s/`:
-- DaemonSet for agents
-- Headless service for discovery
-- ConfigMap for TUI config
-- RBAC for TUI permissions
-- Deployment for TUI
+### Planned Improvements
+- **Configuration**: Config file support instead of env vars
+- **Metrics**: Add CPU and network I/O monitoring
+- **History**: Implement ring buffer for metric history
+- **Port**: Make agent port configurable
+- **Discovery**: Complete Kubernetes API-based discovery
+- **UI**: Full ratatui implementation with real-time updates
+- **Web**: Web interface alternative to TUI
 
-See README.md for deployment details.
+### Technical Debt
+- Agent error handling could be more robust
+- Client timeout is hardcoded to 5 seconds
+- TUI discovery fallback is static (should read from config file)
 
 ## Dependencies
 
-### Key Dependencies per Crate
+### Workspace-level (consistent across crates)
+- `tokio = "1.41"` - Async runtime
+- `serde = "1.0"` - Serialization
+- `serde_json = "1.0"` - JSON handling
+- `anyhow = "1.0"` - Error handling
 
-**Agent:**
-- `axum` - Web framework
-- `tokio` - Async runtime
-- `tower` - Middleware (future use)
+### Agent-specific
+- `axum = "0.7"` - Web framework
+- `tower = "0.5"` - Middleware (future use)
 
-**Client:**
-- `reqwest` - HTTP client
-- `tokio` - Async runtime
-- `futures` - Concurrent futures
+### Client-specific
+- `reqwest` - HTTP client (in Cargo.toml)
 
-**Common:**
-- `serde` - Serialization
-- No external HTTP dependencies
+## Quick Reference
 
-**TUI:**
-- `rwatch-client` - Business logic
-- `rwatch-common` - Shared types
+| Task | Command |
+|------|---------|
+| Run agent | `cargo run -p rwatch-agent` |
+| Run TUI | `cargo run -p rwatch-tui` |
+| Test all | `cargo test` |
+| Build release | `cargo build --release` |
+| Check health | `curl http://localhost:3000/health` |
+| Check memory | `curl http://localhost:3000/memory` |
 
-## Known Limitations
+## Resources
 
-1. **Platform Specific**: Agent only works on Linux (requires /proc/meminfo)
-2. **Hardcoded Port**: Agent binds to port 3000 (not configurable)
-3. **Single Node**: Each agent only monitors its own node
-4. **No Authentication**: No API keys or authentication on endpoints
-5. **No TLS**: HTTP only, no HTTPS support
-6. **Limited Metrics**: Only memory (total/available), no CPU/network
-7. **No Persistence**: No database, no historical data retention
-8. **No Alerting**: No notification system for failures
+- **Repository**: `Davidcode2/rwatch`
+- **Deployment Repo**: `Davidcode2/app-of-apps`
+- **Container Registry**: `ghcr.io/davidcode2/rwatch-agent`
+- **Main Documentation**: `README.md`
+- **Deployment Guide**: `DEPLOYMENT.md`
+- **Rust Best Practices**: `RUST_BEST_PRACTICES.md`
 
-## For AI Agents
+---
 
-When working with this codebase:
-
-1. **Adding New Metrics**: Extend the Memory struct or add new endpoints in agent/, add corresponding types in common/, and update client/ to query them.
-
-2. **Adding UI Consumers**: The client crate is designed to support multiple UI types. Use the Client API:
-   ```rust
-   let client = Client::new();
-   let discovery = StaticDiscovery::from_urls(&["http://agent:3000"]);
-   let agents = discovery.discover().await?;
-   let results = client.query_agents(&agents.urls()).await;
-   ```
-
-3. **Configuration**: Currently uses environment variables. Config file support would be added to client/src/discovery.rs or a new config module.
-
-4. **Testing**: All business logic is tested. When adding features, add corresponding unit tests in the `#[cfg(test)]` modules.
-
-## Next Steps
-
-Based on current state, likely next features:
-1. Implement actual Kubernetes API discovery
-2. Add configuration file support
-3. Implement ring buffer for metric history
-4. Add CPU metrics endpoint
-5. Make agent port configurable
-6. Add proper ratatui-based interactive TUI
-7. Implement web interface using the client crate
+*Last updated: 2025-03-06*
+*Version: 0.1.3*
