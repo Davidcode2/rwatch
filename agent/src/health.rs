@@ -28,6 +28,7 @@ impl HealthHandler {
 mod tests {
     use crate::Instant;
     use crate::create_router;
+    use crate::metrics::K8sState;
     use rwatch_common::health::HealthResponse;
     use super::*;
     use axum::body::Body;
@@ -35,12 +36,22 @@ mod tests {
     use tower::ServiceExt; // For `oneshot` method
 
     /// **Best Practice**: Test your HTTP handlers without starting a real server
+    /// This test requires a valid Kubernetes config. It will be skipped if not available.
     #[tokio::test]
     async fn test_health_endpoint() {
         // Initialize START_TIME for the test
         let _ = START_TIME.set(Instant::now());
 
-        let app = create_router();
+        // Try to create K8s state, skip test if no config available
+        let k8s_state = match K8sState::new().await {
+            Ok(state) => state,
+            Err(_) => {
+                eprintln!("Skipping test: no Kubernetes config available");
+                return;
+            }
+        };
+
+        let app = create_router(k8s_state);
 
         // Create a test request
         let response = app

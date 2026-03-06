@@ -17,3 +17,13 @@ tower = "0.5"  # Useful for middleware in future iterations
 
 # Internal dependency - note the path-based reference
 rwatch-common = { path = "../common" }
+
+# Kubernetes client libraries
+kube = { version = "0.98", features = ["client", "runtime", "ws"] }
+k8s-openapi = { version = "0.24", features = ["v1_32"] }
+
+# For resource quantity parsing
+thiserror = "1.0"
+
+# For timestamps
+chrono = "0.4"

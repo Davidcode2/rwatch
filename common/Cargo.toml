@@ -8,3 +8,6 @@ authors.workspace = true
 # Using workspace dependencies ensures version consistency
 serde = { workspace = true }
 serde_json = { workspace = true }
+
+# For timestamps
+chrono = { version = "0.4", features = ["serde"] }

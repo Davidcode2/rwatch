@@ -6,3 +6,4 @@
 pub mod health;
 pub mod memory;
 pub mod memory_display;
+pub mod metrics;
