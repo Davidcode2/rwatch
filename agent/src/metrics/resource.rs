@@ -11,7 +11,6 @@ pub mod k8s_metrics {
     #[derive(Clone, Debug, Default, Deserialize, Serialize)]
     #[serde(rename_all = "camelCase")]
     pub struct NodeMetrics {
-        #[serde(flatten)]
         pub metadata: k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta,
         pub usage: NodeUsage,
     }
@@ -51,7 +50,6 @@ pub mod k8s_metrics {
     #[derive(Clone, Debug, Default, Deserialize, Serialize)]
     #[serde(rename_all = "camelCase")]
     pub struct PodMetrics {
-        #[serde(flatten)]
         pub metadata: k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta,
         pub containers: Vec<ContainerMetrics>,
     }
@@ -96,11 +94,24 @@ pub mod k8s_metrics {
 }
 
 /// Parse CPU quantity to millicores
-/// Examples: "100m" -> 100, "2" -> 2000, "0.5" -> 500
+/// Examples: "100m" -> 100, "2" -> 2000, "0.5" -> 500, "1000000000n" -> 1
 pub fn parse_cpu_to_millicores(quantity: &str) -> MetricsResult<u64> {
     if quantity.ends_with('m') {
+        // Millicores
         quantity[..quantity.len()-1]
             .parse::<u64>()
+            .map_err(|e| MetricsError::ParseError(format!("CPU '{}': {}", quantity, e)))
+    } else if quantity.ends_with('n') {
+        // Nanocores - convert to millicores (1 millicore = 1,000,000 nanocores)
+        quantity[..quantity.len()-1]
+            .parse::<f64>()
+            .map(|v| (v / 1_000_000.0) as u64)
+            .map_err(|e| MetricsError::ParseError(format!("CPU '{}': {}", quantity, e)))
+    } else if quantity.ends_with("u") {
+        // Microcores - convert to millicores (1 millicore = 1,000 microcores)
+        quantity[..quantity.len()-1]
+            .parse::<f64>()
+            .map(|v| (v / 1000.0) as u64)
             .map_err(|e| MetricsError::ParseError(format!("CPU '{}': {}", quantity, e)))
     } else {
         // Plain number means cores, convert to millicores
