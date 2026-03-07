@@ -1,34 +1,54 @@
-# Build stage
-FROM rust:1.88-slim AS builder
-
+# ==========================================
+# Base Chef Stage
+# ==========================================
+FROM rust:1.88-slim AS chef
+# Install cargo-chef. (Note: Once built, this layer is highly cacheable)
+RUN cargo install cargo-chef
 WORKDIR /app
 
-# Copy workspace files
-COPY Cargo.toml Cargo.lock ./
-COPY common/Cargo.toml common/
-COPY client/Cargo.toml client/
-COPY agent/Cargo.toml agent/
-COPY tui/Cargo.toml tui/
+# ==========================================
+# Planner Stage
+# ==========================================
+FROM chef AS planner
+COPY . .
+# Compute a lock-like file for our project dependencies
+RUN cargo chef prepare --recipe-path recipe.json
 
-# Copy source code
-COPY common/src common/src/
-COPY client/src client/src/
-COPY agent/src agent/src/
-COPY tui/src tui/src/
+# ==========================================
+# Builder Stage
+# ==========================================
+FROM chef AS builder
+COPY --from=planner /app/recipe.json recipe.json
 
-# Build the agent in release mode
+# Build dependencies - This is the magic layer Docker will cache!
+RUN cargo chef cook --release --recipe-path recipe.json
+
+# Now copy the actual source code
+# Ensure target/ is in your .dockerignore file so it doesn't overwrite the cached build!
+COPY . .
+
+# Build the agent. This will be lightning fast if dependencies haven't changed.
 RUN cargo build --release -p rwatch-agent
 
-# Runtime stage
+# ==========================================
+# Runtime Stage
+# ==========================================
 FROM debian:bookworm-slim AS runtime
 
-RUN apt-get update && apt-get install -y ca-certificates && rm -rf /var/lib/apt/lists/*
+# Create a non-root user for security
+RUN groupadd -r rwatch && useradd -r -g rwatch rwatch
 
-# Copy the binary from builder
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy the binary
 COPY --from=builder /app/target/release/rwatch-agent /usr/local/bin/rwatch-agent
 
-# Expose the agent port
+# Secure permissions
+RUN chown rwatch:rwatch /usr/local/bin/rwatch-agent
+USER rwatch
+
 EXPOSE 3000
 
-# Run the agent
-ENTRYPOINT ["/usr/local/bin/rwatch-agent"]
+ENTRYPOINT ["rwatch-agent"]
