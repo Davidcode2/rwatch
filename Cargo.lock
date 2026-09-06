@@ -91,9 +91,9 @@ dependencies = [
 
 [[package]]
 name = "anyhow"
-version = "1.0.100"
+version = "1.0.104"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a23eb6b1614318a8071c9b2521f36b424b2c83db5eb3a0fead4a6c0809af6e61"
+checksum = "330a5ed07fa54e4702c9d6c4174f74427fc0ef6e214bbd677ae50a5099946470"
 
 [[package]]
 name = "async-broadcast"
@@ -1735,7 +1735,7 @@ checksum = "b39cdef0fa800fc44525c84ccb54a029961a8215f9619753635a9c0d2538d46d"
 
 [[package]]
 name = "rwatch-agent"
-version = "0.1.8"
+version = "0.1.11"
 dependencies = [
  "anyhow",
  "axum",
@@ -1754,7 +1754,7 @@ dependencies = [
 
 [[package]]
 name = "rwatch-client"
-version = "0.1.8"
+version = "0.1.11"
 dependencies = [
  "anyhow",
  "futures",
@@ -1767,7 +1767,7 @@ dependencies = [
 
 [[package]]
 name = "rwatch-common"
-version = "0.1.8"
+version = "0.1.11"
 dependencies = [
  "chrono",
  "serde",
@@ -1776,7 +1776,7 @@ dependencies = [
 
 [[package]]
 name = "rwatch-tui"
-version = "0.1.8"
+version = "0.1.11"
 dependencies = [
  "anyhow",
  "rwatch-client",
