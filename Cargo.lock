@@ -275,9 +275,9 @@ checksum = "613afe47fcd5fac7ccf1db93babcb082c5994d996f20b8b159f2ad1658eb5724"
 
 [[package]]
 name = "chrono"
-version = "0.4.44"
+version = "0.4.45"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c673075a2e0e5f4a1dde27ce9dee1ea4558c7ffe648f576438a20ca1d2acc4b0"
+checksum = "1aa79e62e7697b8e29b513a68abacf485adcd1fe8284a4316c5ae868e6633327"
 dependencies = [
  "iana-time-zone",
  "js-sys",
@@ -1735,7 +1735,7 @@ checksum = "b39cdef0fa800fc44525c84ccb54a029961a8215f9619753635a9c0d2538d46d"
 
 [[package]]
 name = "rwatch-agent"
-version = "0.1.8"
+version = "0.1.11"
 dependencies = [
  "anyhow",
  "axum",
@@ -1754,7 +1754,7 @@ dependencies = [
 
 [[package]]
 name = "rwatch-client"
-version = "0.1.8"
+version = "0.1.11"
 dependencies = [
  "anyhow",
  "futures",
@@ -1767,7 +1767,7 @@ dependencies = [
 
 [[package]]
 name = "rwatch-common"
-version = "0.1.8"
+version = "0.1.11"
 dependencies = [
  "chrono",
  "serde",
@@ -1776,7 +1776,7 @@ dependencies = [
 
 [[package]]
 name = "rwatch-tui"
-version = "0.1.8"
+version = "0.1.11"
 dependencies = [
  "anyhow",
  "rwatch-client",
