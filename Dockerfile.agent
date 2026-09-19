@@ -1,7 +1,7 @@
 # ==========================================
 # Base Chef Stage
 # ==========================================
-FROM rust:1.88-slim AS chef
+FROM rust:1.88-slim@sha256:38bc5a86d998772d4aec2348656ed21438d20fcdce2795b56ca434cf21430d89 AS chef
 # Install cargo-chef. (Note: Once built, this layer is highly cacheable)
 RUN cargo install cargo-chef
 WORKDIR /app
@@ -33,7 +33,7 @@ RUN cargo build --release -p rwatch-agent
 # ==========================================
 # Runtime Stage
 # ==========================================
-FROM debian:bookworm-slim AS runtime
+FROM debian:bookworm-slim@sha256:3783cc01769c7b2b1b83a5c5ad96c815348e28ed7da68e2e3687004faa906251 AS runtime
 
 # Create a non-root user for security
 RUN groupadd -r rwatch && useradd -r -g rwatch rwatch
